@@ -1,0 +1,71 @@
+Bootstrap: docker
+From: ghcr.io/prefix-dev/pixi:latest
+
+%environment
+    # Set SNAKEMAKE_CONDA_PREFIX to use pixi's environment location
+    export SNAKEMAKE_CONDA_PREFIX=/opt/FIRE/.pixi/envs
+    export PATH=/opt/FIRE/.pixi/envs/default/bin:$PATH
+
+%post
+    # Update and install git if needed
+    apt-get update && apt-get install -y git
+    
+    # Clone the FIRE repository
+    cd /opt
+    git clone --depth 1 https://github.com/fiberseq/FIRE.git
+    cd FIRE
+
+cat >config/config_apptainer.yaml <<EOF
+ref: /opt/FIRE/config/ref_apptainer.fa # path to a reference fasta
+ref_name: XXXX # name of the reference genome, ideally use a ucsc name
+manifest: config/config_apptainer.tbl # table with samples to process
+excludes: /dev/null
+EOF
+
+    echo -n ">chr1\nACGT\n" >config/ref_apptainer.fa
+    echo "chr1\t4\t4\n" >config/ref_apptainer.fa.fai
+
+    echo -n "sample\tbam\nnew_feats_GM12878\t/opt/FIRE/config/dummy.bam" >config/config_apptainer.tbl
+    touch /opt/FIRE/config/dummy.bam /opt/FIRE/config/dummy.bam.bai
+
+    # Install using pixi - this will create environments and download dependencies
+    pixi install
+    
+    # Pre-populate all pixi environments to ensure they're cached in the container
+    pixi run --environment default true || true
+    
+    # Set SNAKEMAKE_CONDA_PREFIX for conda environment creation
+    export SNAKEMAKE_CONDA_PREFIX=/opt/FIRE/.pixi/envs
+    
+    # Pre-create all Snakemake conda environments
+    # This fetches and builds all conda environments defined in the Snakemake workflow
+    # so they're available in the container without needing to be created at runtime
+    pixi run snakemake --cores 1 --conda-create-envs-only --use-conda --configfile config/config_apptainer.yaml --snakefile workflow/Snakefile 
+    
+    # Alternative: if there are specific config requirements, you might need:
+    # pixi run snakemake --cores 1 --conda-create-envs-only --use-conda --configfile config/config.yaml || true
+    
+    # Clean up apt cache to reduce image size
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%runscript
+    # cd /opt/FIRE
+    exec pixi run --manifest-path "/opt/FIRE/" "$@"
+
+%labels
+    Author Kimmo Palin
+    Version 1.0
+    Description FIRE pipeline with pixi package manager
+
+%help
+    This container includes the FIRE (Fiber-seq Inferred Regulatory Elements) pipeline
+    with all dependencies managed by pixi.
+    
+    The SNAKEMAKE_CONDA_PREFIX is set to use pixi environments.
+    
+    To run:
+        apptainer run fire.sif <command>
+    
+    To execute commands in the FIRE directory:
+        apptainer exec fire.sif <command>
