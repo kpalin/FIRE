@@ -10,6 +10,8 @@ import polars.selectors as cs
 import gzip
 import sys
 
+#from memory_profiler import profile
+
 # from numba import njit
 ROLLING_FIRE_SCORE_WINDOW_SIZE = 200
 
@@ -26,7 +28,7 @@ def find_nearest(array, value):
     return idx
 
 
-def my_read_csv(*args, **kwargs):
+def my_read_csv(*args, lazy=False, **kwargs):
     try:
         result = pl.read_csv(*args, **kwargs)
     # do some transformation with the dataframe
@@ -43,7 +45,7 @@ def my_read_csv(*args, **kwargs):
 # ['#chrom', 'start', 'end', 'coverage', 'fire_coverage', 'score', 'nuc_coverage', 'msp_coverage',
 # 'coverage_H1', 'fire_coverage_H1', 'score_H1', 'nuc_coverage_H1', 'msp_coverage_H1',
 # 'coverage_H2', 'fire_coverage_H2', 'score_H2', 'nuc_coverage_H2', 'msp_coverage_H2']
-def read_pileup_file(infile, nrows):
+def read_pileup_file(infile, nrows, lazy=False) -> pl.DataFrame | pl.LazyFrame:
     # get the header from the first line of the file
     header = my_read_csv(infile, separator="\t", n_rows=1).columns
 
@@ -80,6 +82,7 @@ def read_pileup_file(infile, nrows):
         n_rows=nrows,
         infer_schema_length=100000,
         schema_overrides=schema_overrides,
+        lazy=lazy
     )
     logging.info(f"Done reading pileup file:\n{pileup}")
     return pileup
@@ -154,37 +157,36 @@ def fdr_table_from_scores(fire_scores):
 
 def make_fdr_table(infile, outfile, nrows, max_cov=None, min_cov=None, max_fdr=0.05):
     # read the pileup file
-    pileup = read_pileup_file(infile, nrows)
+    import duckdb
+
     # filter on coverages if needed
+    where_cov = []
     if max_cov is not None:
-        pileup = pileup.filter(
-            pl.col("coverage") <= max_cov, pl.col("coverage_shuffled") <= max_cov
-        )
+        where_cov.append(f" (coverage <= {max_cov} AND  coverage_shuffled <= {max_cov} )")
+        
     if min_cov is not None:
-        pileup = pileup.filter(
-            pl.col("coverage") >= min_cov, pl.col("coverage_shuffled") >= min_cov
-        )
+        where_cov.append(f" (coverage >= {min_cov} AND  coverage_shuffled >= {min_cov} )")
+        
+    if len(where_cov)>0:
+        where_cov="WHERE " + " AND ".join(where_cov)
+    else:
+        where_cov=""
+        
+    q= f"""
+                WITH pileup AS (select "#chrom","start","end","coverage","coverage_shuffled","score","score_shuffled","end"-"start" bp 
+                    FROM read_csv('{infile}',sep='\\t',header=true,ignore_errors=true))
 
-    # aggregate by the score and weight the score by the number of bases
-    fire_scores = (
-        pileup.melt(
-            value_vars=["score", "score_shuffled"],
-            id_vars=["#chrom", "start", "end"],
-            variable_name="type",
-            value_name="score",
-        )
-        .with_columns(
-            pl.when(pl.col("type") == "score")
-            .then(True)
-            .otherwise(False)
-            .alias("is_real"),
-            pl.col("end").sub(pl.col("start")).alias("bp"),
-        )
-        .group_by(["score", "is_real"])
-        .agg(pl.sum("bp").alias("bp"))
-        .sort("score", descending=True)
-    )
-
+                SELECT score,True AS is_real,sum(bp) AS bp 
+                    FROM pileup {where_cov} 
+                    GROUP BY score
+                UNION 
+                SELECT score_shuffled score, FALSE AS is_real, sum(bp) AS bp 
+                    FROM pileup {where_cov} 
+                    GROUP BY score_shuffled
+                ORDER BY score DESC;
+                """
+    fire_scores = duckdb.sql(q).pl().cast({"bp":float})
+   
     # count bases in each category
     sums = fire_scores.group_by("is_real").agg(pl.sum("bp").alias("Mbp") / 1_000_000)
     logging.info(f"Number of Mbp in each category:\n{sums}")
