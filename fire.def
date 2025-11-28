@@ -12,7 +12,7 @@ From: ghcr.io/prefix-dev/pixi:latest
     
     # Clone the FIRE repository
     cd /opt
-    git clone --depth 1 /home/kpalin/software/FIRE
+    git clone --depth 1 /home/kpalin/software/FIRE/
     cd FIRE
 
 cat >config/config_apptainer.yaml <<EOF
