@@ -17,13 +17,23 @@ rule fire:
         min_ave_msp_size=config.get("min_ave_msp_size", 10),
         use_ont=USE_ONT,
         flag=FILTER_FLAG,
+        add_nuc=ADD_NUCLEOSOMES,
     benchmark:
         "results/{sm}/additional-outputs-{v}/benchmarks/{sm}-fire-bam.txt"
     conda:
         DEFAULT_ENV
     shell:
         """
+        # optionally add nucleosome/MSP calls before applying the FIRE model;
+        # `ft fire` requires input with both m6a and nucleosome calls, so this
+        # path is for input bams that only carry m6a calls.
+        if [ "{params.add_nuc}" = "True" ]; then
+            NUC_CMD="{FT_EXE} add-nucleosomes -t {threads} - -"
+        else
+            NUC_CMD="cat"
+        fi
         samtools view -@ {threads} -u -F {params.flag} {input.bam} \
+            | $NUC_CMD \
             | {FT_EXE} fire -F {params.flag} -t {threads} \
                 {params.use_ont} \
                 --min-msp {params.min_msp} \
