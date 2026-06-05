@@ -84,6 +84,12 @@ FT_EXE = config.get("ft_exe", "ft")
 if FT_EXE != "ft":
     print(f"INFO: Using FT_EXE: {FT_EXE}", file=sys.stderr)
 
+# optionally run `ft add-nucleosomes` before `ft fire` (for input bams that
+# have m6a calls but no nucleosome/MSP calls yet)
+ADD_NUCLEOSOMES = config.get("add_nucleosomes", False)
+if ADD_NUCLEOSOMES:
+    print("INFO: Running ft add-nucleosomes before ft fire", file=sys.stderr)
+
 ONT = config.get("ont", False)
 if ONT:
     ont_ml = config.get("ont_ml", 0)
