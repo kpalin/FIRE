@@ -153,6 +153,9 @@ config/**
 .cargo/*
 .conda/*
 *.tbl.gz
+*.tbl
+*.sif
+*.bed.gz
 
 *code-workspace*
 .vscode/*
