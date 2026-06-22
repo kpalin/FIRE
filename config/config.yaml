@@ -1,3 +1,4 @@
 ref: /mmfs1/gscratch/stergachislab/assemblies/hg38.analysisSet.fa # path to a reference fasta
 ref_name: hg38 # name of the reference genome, ideally use a ucsc name
 manifest: config/config.tbl # table with samples to process
+add_nucleosomes: true  # Add nucleosomes to input instead of calling m6a from kinetics
