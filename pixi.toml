@@ -1,5 +1,4 @@
 [workspace]
-[workspace]
 authors = ["Mitchell Robert Vollger <mrvollger@gmail.com>"]
 channels = ["conda-forge", "bioconda"]
 description = "A Snakemake pipeline for calling FIRE peaks using fibertools-rs."

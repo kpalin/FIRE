@@ -1,6 +1,9 @@
 Bootstrap: docker
 From: ghcr.io/prefix-dev/pixi:latest
 
+%files 
+    .git/ /opt/FIRE_repo/.git/
+
 %environment
     # Set SNAKEMAKE_CONDA_PREFIX to use pixi's environment location
     export SNAKEMAKE_CONDA_PREFIX=/opt/FIRE/.pixi/envs
@@ -12,7 +15,8 @@ From: ghcr.io/prefix-dev/pixi:latest
     
     # Clone the FIRE repository
     cd /opt
-    git clone --depth 1 /home/kpalin/software/FIRE/
+    git clone --depth 1 FIRE_repo/ FIRE
+    rm -r FIRE_repo
     cd FIRE
 
 cat >config/config_apptainer.yaml <<EOF
