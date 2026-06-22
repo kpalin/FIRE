@@ -36,7 +36,7 @@ rule shuffled_pileup_chromosome:
         """
         {FT_EXE} pileup {input.cram} -r {wildcards.chrom} -t {threads} \
             --fiber-coverage --shuffle {input.shuffled} \
-            --no-msp --no-nuc \
+            --no-msp --no-nuc  \
             | bgzip -@ {threads} \
         > {output.bed}    
         """
@@ -57,7 +57,7 @@ rule shuffled_pileup:
         DEFAULT_ENV
     shell:
         """
-        cat {input.beds} > {output.bed}
+        zcat {input.beds} | awk '!/^#/ || !c++' |bgzip> {output.bed}
         tabix -p bed {output.bed}
         """
 

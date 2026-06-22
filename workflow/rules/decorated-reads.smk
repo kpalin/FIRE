@@ -95,12 +95,12 @@ rule decorate_fibers_2:
         # for some reason filtering out NUCs removes the display bug for bigtools
         # at least in my test cases
         """
-        echo params.tmpdir is {params.tmpdir}
+        echo resources.tmpdir is {resources.tmpdir}
         cat {input.decorated} \
             | bgzip -cd -@ {threads} \
             | rg -v '^#' \
             | rg -vw 'NUC' \
-            | TMPDIR={params.tmpdir} bigtools bedtobigbed \
+            | TMPDIR={resources.tmpdir} bigtools bedtobigbed \
                 -t {threads} \
                 --block-size {params.block_size} --items-per-slot {params.items_per_slot} \
                 --nzooms {params.nzooms} \

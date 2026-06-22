@@ -15,9 +15,10 @@ From: ghcr.io/prefix-dev/pixi:latest
     
     # Clone the FIRE repository
     cd /opt
-    git clone --depth 1 FIRE_repo/ FIRE
+    git clone --depth 1 /opt/FIRE_repo/ FIRE
     rm -r FIRE_repo
     cd FIRE
+    rm -r .git
 
 cat >config/config_apptainer.yaml <<EOF
 ref: /opt/FIRE/config/ref_apptainer.fa # path to a reference fasta
